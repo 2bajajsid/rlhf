@@ -4,6 +4,7 @@ from scipy.special import expit
 import torch
 import torch.nn as nn 
 import matplotlib.pyplot as plt
+import math
 
 rng = np.random.default_rng()
 np.random.seed(946)
@@ -69,13 +70,13 @@ class mu_p_network(torch.nn.Module):
     # Prediction Function
     def forward(self, x):
         self.layer_in = self.linear_1_layer(x)
-        self.act = torch.relu(self.layer_in)
+        self.act = torch.sigmoid(self.layer_in)
         self.layer_2 = self.linear_2_layer(self.act)
-        self.act = torch.relu(self.layer_2)
+        self.act = torch.sigmoid(self.layer_2)
         self.layer_out = self.linear_3_layer(self.act)
         return self.layer_out
     
-size = 20
+size = 20 # size of hidden layers
 model = mu_p_network(n_0, size, n_0)
 batches_per_epoch=50
         
@@ -91,9 +92,10 @@ def loss_logistic(y, beta, x):
         loss = loss + (y[i] - expit(torch.matmul(beta[i], x[i])))**2
     return loss
 
+# training loop
 optimizer = torch.optim.SGD(model.parameters(),
-                            lr = 0.01 * size)
-epochs=10
+                            lr = 0.001 * size)
+epochs=500
 cost=[]
 total=0
 
@@ -101,19 +103,19 @@ for epoch in range(epochs):
     total = 0
     epoch = epoch + 1
 
-    random_batch = np.random.choice(N, batches_per_epoch)
-    X_batch = X[random_batch]
-    Y_batch = y_1[random_batch]
+    for i in range(math.ceil(N / batches_per_epoch)):
+        random_batch = np.random.choice(N, batches_per_epoch)
+        X_batch = X[random_batch]
+        Y_batch = y_1[random_batch]
 
+        beta_hat = model(X_batch.float())
+        optimizer.zero_grad()
 
-    beta_hat = model(X_batch.float())
-    optimizer.zero_grad()
-
-    loss = loss_linear(Y_batch, beta_hat, X_batch)
-    loss.backward()
-    optimizer.step()
-    total += loss.item() 
-    cost.append(total / batches_per_epoch)
+        loss = loss_linear(Y_batch, beta_hat, X_batch)
+        loss.backward()
+        optimizer.step()
+        total += loss.item() 
+        cost.append(total / batches_per_epoch)
 
     if epoch % 1000 == 0:
         print(str(epoch)+ " " + "epochs done!")  
